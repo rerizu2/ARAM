@@ -3,8 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>高1数学アラーム - 更新防止強化版</title>
+    <title>高1数学アラーム - パネル入力版</title>
     <style>
+        :root {
+            --primary: #007bff;
+            --danger: #ff4d4d;
+            --success: #28a745;
+            --snooze: #f39c12;
+        }
+
         body {
             font-family: sans-serif;
             background-color: #f0f2f5;
@@ -13,71 +20,120 @@
             align-items: center;
             min-height: 100vh;
             margin: 0;
-            padding: 20px;
+            padding: 10px;
         }
 
         .container {
             background: white;
-            padding: 2rem;
+            padding: 1.5rem;
             border-radius: 20px;
             box-shadow: 0 15px 35px rgba(0,0,0,0.15);
             text-align: center;
             width: 100%;
-            max-width: 500px;
+            max-width: 450px;
         }
 
         #clock {
-            font-size: 3.5rem;
+            font-size: 3rem;
             font-weight: bold;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             font-family: monospace;
         }
 
+        /* 設定エリア */
         .setup-section {
             background: #f8f9fa;
             padding: 20px;
+            border-radius: 15px;
+        }
+
+        input[type="time"] {
+            font-size: 1.5rem;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 2px solid #ddd;
             border-radius: 10px;
-            margin-bottom: 20px;
         }
 
-        input[type="time"] { font-size: 1.5rem; padding: 10px; margin-bottom: 15px; }
-
-        button {
-            background-color: #007bff;
-            color: white;
-            border: none;
-            padding: 15px;
-            font-size: 1.1rem;
-            border-radius: 8px;
-            cursor: pointer;
-            width: 100%;
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
-
+        /* 問題表示エリア */
         #mathChallenge {
             display: none;
-            border-top: 5px solid #ff4d4d;
-            padding-top: 20px;
+            border-top: 5px solid var(--danger);
+            padding-top: 15px;
         }
 
         #questionBox {
             background: #fff0f0;
             padding: 15px;
             border-radius: 12px;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             font-weight: bold;
             color: #d00;
+            margin-bottom: 10px;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* 回答表示パネル */
+        #displayPanel {
+            background: #333;
+            color: #fff;
+            font-size: 1.8rem;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            min-height: 40px;
+            word-wrap: break-word;
+        }
+
+        /* 入力用ボタンパネル */
+        .keypad {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
             margin-bottom: 15px;
         }
+
+        .keypad button {
+            padding: 15px 5px;
+            font-size: 1.2rem;
+            border: none;
+            border-radius: 8px;
+            background: #e9ecef;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .keypad button:active { background: #ced4da; }
+        .keypad .btn-op { background: #dee2e6; color: var(--primary); }
+        .keypad .btn-clear { background: #ffc107; }
+
+        /* アクションボタン */
+        .action-btns button {
+            border: none;
+            padding: 15px;
+            font-size: 1.1rem;
+            border-radius: 10px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+            color: white;
+            margin-bottom: 10px;
+        }
+
+        .btn-set { background: var(--primary); }
+        .btn-snooze { background: var(--snooze); }
+        .btn-submit { background: var(--success); }
 
         #snoozeStatus {
             display: none;
             background: #e7f3ff;
-            color: #007bff;
-            padding: 10px;
+            color: var(--primary);
+            padding: 8px;
             border-radius: 8px;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             font-weight: bold;
         }
 
@@ -85,39 +141,18 @@
             display: none;
             background: #fff9db;
             border: 1px solid #fab005;
-            padding: 8px;
-            font-size: 0.75rem;
-            margin-bottom: 15px;
+            padding: 5px;
+            font-size: 0.7rem;
+            margin-bottom: 10px;
         }
         table { width: 100%; border-collapse: collapse; }
-        th, td { border: 1px solid #ccc; padding: 3px; }
-
-        #memoArea { text-align: left; margin-bottom: 15px; }
-        #calcMemo { width: 100%; height: 70px; padding: 8px; box-sizing: border-box; }
-
-        #answerInput {
-            width: 80%;
-            padding: 12px;
-            font-size: 1.5rem;
-            margin-bottom: 10px;
-            text-align: center;
-        }
-
-        .btn-snooze { background-color: #f39c12; }
-        .btn-submit { background-color: #28a745; }
+        th, td { border: 1px solid #ccc; padding: 2px; }
 
         .shake { animation: shake 0.5s infinite; }
         @keyframes shake {
             0%, 100% { transform: translate(0,0); }
-            25% { transform: translate(-5px,0); }
-            75% { transform: translate(5px,0); }
-        }
-
-        .warning-text {
-            color: #ff4d4d;
-            font-size: 0.8rem;
-            margin-bottom: 10px;
-            display: none;
+            25% { transform: translate(-4px,0); }
+            75% { transform: translate(4px,0); }
         }
     </style>
 </head>
@@ -128,19 +163,16 @@
 
     <div id="setupArea" class="setup-section">
         <input type="time" id="alarmTime">
-        <button id="setBtn">アラームをセット</button>
-        <p id="alarmStatus">時間を設定してください</p>
+        <button class="btn-set" id="setBtn">アラームをセット</button>
+        <p id="alarmStatus" style="font-size: 0.9rem; color: #666; margin-top: 10px;">時間を設定してください</p>
     </div>
 
     <div id="mathChallenge">
-        <p class="warning-text" id="reloadWarning">⚠️ アラーム作動中は更新できません！解いてください！</p>
-        <div id="snoozeStatus">🕒 集中タイム中... あと <span id="snoozeTimer">180</span> 秒</div>
+        <div id="snoozeStatus">🕒 集中タイム中... 残り <span id="snoozeTimer">180</span>秒</div>
         <div id="questionBox">問題生成中...</div>
-        <button id="snoozeBtn" class="btn-snooze">計算を開始する（3分消音）</button>
-
+        
         <div id="trigTable">
-            <p style="margin:0 0 5px 0;"><strong>【三角比の表】</strong></p>
-            <table>
+            <table style="background: white;">
                 <tr><th>θ</th><th>0°</th><th>30°</th><th>45°</th><th>60°</th><th>90°</th></tr>
                 <tr><td>sin</td><td>0</td><td>1/2</td><td>1/√2</td><td>√3/2</td><td>1</td></tr>
                 <tr><td>cos</td><td>1</td><td>√3/2</td><td>1/√2</td><td>1/2</td><td>0</td></tr>
@@ -148,14 +180,37 @@
             </table>
         </div>
 
-        <div id="memoArea">
-            <small>📝 計算用メモ</small>
-            <textarea id="calcMemo" placeholder="ここに入力して計算できます"></textarea>
+        <!-- 回答表示パネル -->
+        <div id="displayPanel"></div>
+
+        <!-- 入力パネル -->
+        <div class="keypad">
+            <button onclick="inputKey('7')">7</button>
+            <button onclick="inputKey('8')">8</button>
+            <button onclick="inputKey('9')">9</button>
+            <button class="btn-clear" onclick="clearKey()">AC</button>
+            
+            <button onclick="inputKey('4')">4</button>
+            <button onclick="inputKey('5')">5</button>
+            <button onclick="inputKey('6')">6</button>
+            <button class="btn-op" onclick="inputKey('/')">/</button>
+            
+            <button onclick="inputKey('1')">1</button>
+            <button onclick="inputKey('2')">2</button>
+            <button onclick="inputKey('3')">3</button>
+            <button class="btn-op" onclick="inputKey('√')">√</button>
+            
+            <button onclick="inputKey('0')">0</button>
+            <button class="btn-op" onclick="inputKey('-')">-</button>
+            <button class="btn-op" onclick="inputKey('.')">.</button>
+            <button class="btn-clear" onclick="deleteKey()">🔙</button>
         </div>
 
-        <div id="feedback" style="color:red; margin-bottom:10px; font-weight:bold;"></div>
-        <input type="text" id="answerInput" placeholder="答えを入力" autocomplete="off">
-        <button id="submitBtn" class="btn-submit">回答して完全に停止</button>
+        <div class="action-btns">
+            <button id="snoozeBtn" class="btn-snooze">3分集中モード（消音）</button>
+            <button id="submitBtn" class="btn-submit">回答する</button>
+        </div>
+        <div id="feedback" style="color:red; font-weight:bold; font-size: 0.9rem; height: 1.2rem; margin-bottom: 5px;"></div>
     </div>
 </div>
 
@@ -169,30 +224,14 @@
     let alarmInterval = null;
     let snoozeTimeLeft = 180;
     let snoozeInterval = null;
+    let userDisplay = "";
 
-    // --- 【重要】更新防止ロジック ---
-    
-    // 1. ブラウザの更新ボタンや閉じるボタンへの警告
+    // 更新防止
     window.addEventListener('beforeunload', (e) => {
-        if (isRinging || isSnoozing) {
-            e.preventDefault();
-            e.returnValue = ''; // Chromeで警告を表示させるために必要
-        }
+        if (isRinging || isSnoozing) { e.preventDefault(); e.returnValue = ''; }
     });
 
-    // 2. キーボードショートカット (F5, Ctrl+Rなど) の無効化
-    window.addEventListener('keydown', (e) => {
-        if (isRinging || isSnoozing) {
-            // F5キー
-            if (e.key === 'F5' || (e.ctrlKey && e.key === 'r') || (e.metaKey && e.key === 'r')) {
-                e.preventDefault();
-                document.getElementById('reloadWarning').style.display = 'block';
-            }
-        }
-    });
-
-    // --- 時計・アラーム基本ロジック ---
-
+    // 時計更新
     function tick() {
         const now = new Date();
         const time = now.toTimeString().split(' ')[0].substring(0, 5);
@@ -203,15 +242,17 @@
     }
     setInterval(tick, 1000);
 
+    // アラームセット
     document.getElementById('setBtn').addEventListener('click', () => {
         const val = document.getElementById('alarmTime').value;
         if (val) {
             targetTime = val;
-            document.getElementById('alarmStatus').textContent = `🔔 ${val} にセット完了`;
+            document.getElementById('alarmStatus').textContent = `🔔 ${val} にセットされました`;
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         }
     });
 
+    // アラーム開始
     function startAlarm() {
         isRinging = true;
         isSnoozing = false;
@@ -220,11 +261,12 @@
         document.getElementById('mainContainer').classList.add('shake');
         document.getElementById('snoozeBtn').style.display = 'block';
         document.getElementById('snoozeStatus').style.display = 'none';
-        document.getElementById('reloadWarning').style.display = 'block';
+        clearKey();
         generateProblem();
         playAlarmSound();
     }
 
+    // 音再生
     function playAlarmSound() {
         if (!isRinging) return;
         stopCurrentSound();
@@ -248,6 +290,24 @@
         if (alarmInterval) { clearTimeout(alarmInterval); alarmInterval = null; }
     }
 
+    // パネル入力ロジック
+    function inputKey(num) {
+        userDisplay += num;
+        updateDisplay();
+    }
+    function clearKey() {
+        userDisplay = "";
+        updateDisplay();
+    }
+    function deleteKey() {
+        userDisplay = userDisplay.slice(0, -1);
+        updateDisplay();
+    }
+    function updateDisplay() {
+        document.getElementById('displayPanel').textContent = userDisplay;
+    }
+
+    // スヌーズ
     document.getElementById('snoozeBtn').addEventListener('click', () => {
         isRinging = false;
         isSnoozing = true;
@@ -255,10 +315,8 @@
         document.getElementById('mainContainer').classList.remove('shake');
         document.getElementById('snoozeBtn').style.display = 'none';
         document.getElementById('snoozeStatus').style.display = 'block';
-        
         snoozeTimeLeft = 180;
         document.getElementById('snoozeTimer').textContent = snoozeTimeLeft;
-        
         if (snoozeInterval) clearInterval(snoozeInterval);
         snoozeInterval = setInterval(() => {
             snoozeTimeLeft--;
@@ -270,6 +328,7 @@
         }, 1000);
     });
 
+    // 問題生成
     function generateProblem() {
         const trigTable = document.getElementById('trigTable');
         trigTable.style.display = 'none';
@@ -278,62 +337,56 @@
 
         switch(type) {
             case 0: // 因数分解
-                let v1 = Math.floor(Math.random() * 8) + 1;
-                let v2 = Math.floor(Math.random() * 8) + 1;
-                q = `x² + ${v1+v2}x + ${v1*v2} = 0 の解のうち大きい方は？`;
-                a = `-${Math.min(v1, v2)}`;
+                let v1 = Math.floor(Math.random() * 9) + 1;
+                let v2 = Math.floor(Math.random() * 9) + 1;
+                q = `x² + ${v1+v2}x + ${v1*v2} = 0 の小さい方の解は？`;
+                a = `-${Math.max(v1, v2)}`;
                 break;
             case 1: // 絶対値
-                let v3 = Math.floor(Math.random() * 10) + 5;
-                q = `|x + 2| = ${v3} の正の解は？`;
-                a = `${v3 - 2}`;
+                let v3 = Math.floor(Math.random() * 10) + 10;
+                q = `|x - 7| = ${v3} の正の解は？`;
+                a = `${v3 + 7}`;
                 break;
             case 2: // 三角比
                 trigTable.style.display = 'block';
-                const list = [{q:"sin 30°", a:"1/2"}, {q:"cos 30°", a:"√3/2"}, {q:"tan 60°", a:"√3"}, {q:"sin 45°", a:"1/√2"}];
+                const list = [{q:"sin 60°", a:"√3/2"}, {q:"cos 30°", a:"√3/2"}, {q:"tan 30°", a:"1/√3"}, {q:"sin 45°", a:"1/√2"}];
                 const p = list[Math.floor(Math.random()*list.length)];
-                q = `${p.q} の値は？`; a = p.a;
+                q = `${p.q} は？`; a = p.a;
                 break;
             case 3: // 展開
-                let v4 = Math.floor(Math.random() * 9) + 2;
+                let v4 = Math.floor(Math.random() * 8) + 2;
                 q = `(x + ${v4})(x - ${v4}) の定数項は？`;
                 a = `-${v4*v4}`;
                 break;
             case 4: // 不等式
                 let v5 = Math.floor(Math.random() * 3) + 2;
-                let val = v5 * 6;
-                q = `${v5}x - ${val} < 0 を満たす最大の整数は？`;
-                a = `5`;
+                q = `${v5}x - ${v5*8} < 0 を満たす最大の整数は？`;
+                a = `7`;
                 break;
         }
         document.getElementById('questionBox').innerHTML = q;
         correctAnswer = a;
     }
 
+    // 回答
     document.getElementById('submitBtn').addEventListener('click', () => {
-        const input = document.getElementById('answerInput').value.trim();
-        if (input === correctAnswer) {
+        if (userDisplay === correctAnswer) {
             isRinging = false;
             isSnoozing = false;
             stopCurrentSound();
             if (snoozeInterval) clearInterval(snoozeInterval);
-            
             document.getElementById('mainContainer').classList.remove('shake');
             document.getElementById('mathChallenge').style.display = 'none';
-            document.getElementById('reloadWarning').style.display = 'none';
             document.getElementById('setupArea').style.display = 'block';
-            
             targetTime = null;
             document.getElementById('alarmTime').value = "";
-            document.getElementById('answerInput').value = "";
-            document.getElementById('calcMemo').value = "";
-            document.getElementById('feedback').textContent = "";
-            document.getElementById('alarmStatus').textContent = "解除成功。二度寝しないでくださいね！";
-            alert("正解です。アラームを停止しました。");
+            document.getElementById('alarmStatus').textContent = "完全解除！おはようございます！";
+            alert("正解です。");
         } else {
-            document.getElementById('feedback').textContent = "不正解！問題変更！";
-            document.getElementById('answerInput').value = "";
+            document.getElementById('feedback').textContent = "不正解！問題が変わります";
+            clearKey();
             generateProblem();
+            setTimeout(() => { document.getElementById('feedback').textContent = ""; }, 2000);
         }
     });
 </script>
