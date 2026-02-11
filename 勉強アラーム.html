@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>高1数学アラーム - 3分集中スヌーズ版</title>
+    <title>高1数学アラーム - 更新防止強化版</title>
     <style>
         body {
             font-family: sans-serif;
@@ -71,7 +71,6 @@
             margin-bottom: 15px;
         }
 
-        /* スヌーズ状態の表示 */
         #snoozeStatus {
             display: none;
             background: #e7f3ff;
@@ -113,6 +112,13 @@
             25% { transform: translate(-5px,0); }
             75% { transform: translate(5px,0); }
         }
+
+        .warning-text {
+            color: #ff4d4d;
+            font-size: 0.8rem;
+            margin-bottom: 10px;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -127,10 +133,9 @@
     </div>
 
     <div id="mathChallenge">
+        <p class="warning-text" id="reloadWarning">⚠️ アラーム作動中は更新できません！解いてください！</p>
         <div id="snoozeStatus">🕒 集中タイム中... あと <span id="snoozeTimer">180</span> 秒</div>
-        
         <div id="questionBox">問題生成中...</div>
-
         <button id="snoozeBtn" class="btn-snooze">計算を開始する（3分消音）</button>
 
         <div id="trigTable">
@@ -145,10 +150,10 @@
 
         <div id="memoArea">
             <small>📝 計算用メモ</small>
-            <textarea id="calcMemo" placeholder="計算過程をメモできます"></textarea>
+            <textarea id="calcMemo" placeholder="ここに入力して計算できます"></textarea>
         </div>
 
-        <div id="feedback" style="color:red; margin-bottom:10px;"></div>
+        <div id="feedback" style="color:red; margin-bottom:10px; font-weight:bold;"></div>
         <input type="text" id="answerInput" placeholder="答えを入力" autocomplete="off">
         <button id="submitBtn" class="btn-submit">回答して完全に停止</button>
     </div>
@@ -165,7 +170,29 @@
     let snoozeTimeLeft = 180;
     let snoozeInterval = null;
 
-    // 1. 時計更新
+    // --- 【重要】更新防止ロジック ---
+    
+    // 1. ブラウザの更新ボタンや閉じるボタンへの警告
+    window.addEventListener('beforeunload', (e) => {
+        if (isRinging || isSnoozing) {
+            e.preventDefault();
+            e.returnValue = ''; // Chromeで警告を表示させるために必要
+        }
+    });
+
+    // 2. キーボードショートカット (F5, Ctrl+Rなど) の無効化
+    window.addEventListener('keydown', (e) => {
+        if (isRinging || isSnoozing) {
+            // F5キー
+            if (e.key === 'F5' || (e.ctrlKey && e.key === 'r') || (e.metaKey && e.key === 'r')) {
+                e.preventDefault();
+                document.getElementById('reloadWarning').style.display = 'block';
+            }
+        }
+    });
+
+    // --- 時計・アラーム基本ロジック ---
+
     function tick() {
         const now = new Date();
         const time = now.toTimeString().split(' ')[0].substring(0, 5);
@@ -176,7 +203,6 @@
     }
     setInterval(tick, 1000);
 
-    // 2. セット
     document.getElementById('setBtn').addEventListener('click', () => {
         const val = document.getElementById('alarmTime').value;
         if (val) {
@@ -186,7 +212,6 @@
         }
     });
 
-    // 3. アラーム開始
     function startAlarm() {
         isRinging = true;
         isSnoozing = false;
@@ -195,11 +220,11 @@
         document.getElementById('mainContainer').classList.add('shake');
         document.getElementById('snoozeBtn').style.display = 'block';
         document.getElementById('snoozeStatus').style.display = 'none';
+        document.getElementById('reloadWarning').style.display = 'block';
         generateProblem();
         playAlarmSound();
     }
 
-    // 4. 音再生
     function playAlarmSound() {
         if (!isRinging) return;
         stopCurrentSound();
@@ -223,7 +248,6 @@
         if (alarmInterval) { clearTimeout(alarmInterval); alarmInterval = null; }
     }
 
-    // 5. スヌーズ開始（集中タイム）
     document.getElementById('snoozeBtn').addEventListener('click', () => {
         isRinging = false;
         isSnoozing = true;
@@ -232,7 +256,7 @@
         document.getElementById('snoozeBtn').style.display = 'none';
         document.getElementById('snoozeStatus').style.display = 'block';
         
-        snoozeTimeLeft = 180; // 3分
+        snoozeTimeLeft = 180;
         document.getElementById('snoozeTimer').textContent = snoozeTimeLeft;
         
         if (snoozeInterval) clearInterval(snoozeInterval);
@@ -241,12 +265,11 @@
             document.getElementById('snoozeTimer').textContent = snoozeTimeLeft;
             if (snoozeTimeLeft <= 0) {
                 clearInterval(snoozeInterval);
-                if (isSnoozing) startAlarm(); // まだ解けてなければ再始動
+                if (isSnoozing) startAlarm();
             }
         }, 1000);
     });
 
-    // 6. 問題生成 (1000問以上対応)
     function generateProblem() {
         const trigTable = document.getElementById('trigTable');
         trigTable.style.display = 'none';
@@ -255,38 +278,38 @@
 
         switch(type) {
             case 0: // 因数分解
-                let v1 = Math.floor(Math.random() * 10) + 1;
-                let v2 = Math.floor(Math.random() * 10) + 1;
-                q = `x² + ${v1+v2}x + ${v1*v2} = 0 の解のうち小さい方は？`;
-                a = `-${Math.max(v1, v2)}`;
+                let v1 = Math.floor(Math.random() * 8) + 1;
+                let v2 = Math.floor(Math.random() * 8) + 1;
+                q = `x² + ${v1+v2}x + ${v1*v2} = 0 の解のうち大きい方は？`;
+                a = `-${Math.min(v1, v2)}`;
                 break;
             case 1: // 絶対値
-                let v3 = Math.floor(Math.random() * 20) + 5;
-                q = `|x - 5| = ${v3} の正の解は？`;
-                a = `${v3 + 5}`;
+                let v3 = Math.floor(Math.random() * 10) + 5;
+                q = `|x + 2| = ${v3} の正の解は？`;
+                a = `${v3 - 2}`;
                 break;
             case 2: // 三角比
                 trigTable.style.display = 'block';
-                const list = [{q:"sin 60°", a:"√3/2"}, {q:"cos 30°", a:"√3/2"}, {q:"tan 45°", a:"1"}, {q:"cos 60°", a:"1/2"}];
+                const list = [{q:"sin 30°", a:"1/2"}, {q:"cos 30°", a:"√3/2"}, {q:"tan 60°", a:"√3"}, {q:"sin 45°", a:"1/√2"}];
                 const p = list[Math.floor(Math.random()*list.length)];
                 q = `${p.q} の値は？`; a = p.a;
                 break;
             case 3: // 展開
-                let v4 = Math.floor(Math.random() * 12) + 2;
+                let v4 = Math.floor(Math.random() * 9) + 2;
                 q = `(x + ${v4})(x - ${v4}) の定数項は？`;
                 a = `-${v4*v4}`;
                 break;
-            case 4: // 1次不等式
-                let v5 = Math.floor(Math.random() * 4) + 2;
-                q = `${v5}x - ${v5*10} < 0 を満たす最大の整数は？`;
-                a = `9`;
+            case 4: // 不等式
+                let v5 = Math.floor(Math.random() * 3) + 2;
+                let val = v5 * 6;
+                q = `${v5}x - ${val} < 0 を満たす最大の整数は？`;
+                a = `5`;
                 break;
         }
         document.getElementById('questionBox').innerHTML = q;
         correctAnswer = a;
     }
 
-    // 7. 回答
     document.getElementById('submitBtn').addEventListener('click', () => {
         const input = document.getElementById('answerInput').value.trim();
         if (input === correctAnswer) {
@@ -297,6 +320,7 @@
             
             document.getElementById('mainContainer').classList.remove('shake');
             document.getElementById('mathChallenge').style.display = 'none';
+            document.getElementById('reloadWarning').style.display = 'none';
             document.getElementById('setupArea').style.display = 'block';
             
             targetTime = null;
@@ -304,10 +328,10 @@
             document.getElementById('answerInput').value = "";
             document.getElementById('calcMemo').value = "";
             document.getElementById('feedback').textContent = "";
-            document.getElementById('alarmStatus').textContent = "正解です。アラームを完全に解除しました。";
-            alert("正解！お疲れ様でした。");
+            document.getElementById('alarmStatus').textContent = "解除成功。二度寝しないでくださいね！";
+            alert("正解です。アラームを停止しました。");
         } else {
-            document.getElementById('feedback').textContent = "不正解！問題が変わります";
+            document.getElementById('feedback').textContent = "不正解！問題変更！";
             document.getElementById('answerInput').value = "";
             generateProblem();
         }
