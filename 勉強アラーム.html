@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>高1数学アラーム - パネル入力版</title>
+    <title>高1数学アラーム - 網羅版</title>
     <style>
         :root {
             --primary: #007bff;
@@ -13,7 +13,7 @@
         }
 
         body {
-            font-family: sans-serif;
+            font-family: "Helvetica Neue", Arial, sans-serif;
             background-color: #f0f2f5;
             display: flex;
             justify-content: center;
@@ -30,17 +30,16 @@
             box-shadow: 0 15px 35px rgba(0,0,0,0.15);
             text-align: center;
             width: 100%;
-            max-width: 450px;
+            max-width: 480px;
         }
 
         #clock {
             font-size: 3rem;
             font-weight: bold;
             margin-bottom: 15px;
-            font-family: monospace;
+            font-family: 'Courier New', monospace;
         }
 
-        /* 設定エリア */
         .setup-section {
             background: #f8f9fa;
             padding: 20px;
@@ -55,7 +54,6 @@
             border-radius: 10px;
         }
 
-        /* 問題表示エリア */
         #mathChallenge {
             display: none;
             border-top: 5px solid var(--danger);
@@ -70,25 +68,25 @@
             font-weight: bold;
             color: #d00;
             margin-bottom: 10px;
-            min-height: 50px;
+            min-height: 70px;
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
+            line-height: 1.5;
         }
 
-        /* 回答表示パネル */
         #displayPanel {
             background: #333;
             color: #fff;
-            font-size: 1.8rem;
+            font-size: 2rem;
             padding: 10px;
             border-radius: 8px;
             margin-bottom: 15px;
-            min-height: 40px;
-            word-wrap: break-word;
+            min-height: 45px;
+            font-family: monospace;
         }
 
-        /* 入力用ボタンパネル */
         .keypad {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -106,11 +104,9 @@
             font-weight: bold;
         }
 
-        .keypad button:active { background: #ced4da; }
         .keypad .btn-op { background: #dee2e6; color: var(--primary); }
         .keypad .btn-clear { background: #ffc107; }
 
-        /* アクションボタン */
         .action-btns button {
             border: none;
             padding: 15px;
@@ -127,16 +123,6 @@
         .btn-snooze { background: var(--snooze); }
         .btn-submit { background: var(--success); }
 
-        #snoozeStatus {
-            display: none;
-            background: #e7f3ff;
-            color: var(--primary);
-            padding: 8px;
-            border-radius: 8px;
-            margin-bottom: 10px;
-            font-weight: bold;
-        }
-
         #trigTable {
             display: none;
             background: #fff9db;
@@ -145,7 +131,7 @@
             font-size: 0.7rem;
             margin-bottom: 10px;
         }
-        table { width: 100%; border-collapse: collapse; }
+        table { width: 100%; border-collapse: collapse; background: white; }
         th, td { border: 1px solid #ccc; padding: 2px; }
 
         .shake { animation: shake 0.5s infinite; }
@@ -164,26 +150,25 @@
     <div id="setupArea" class="setup-section">
         <input type="time" id="alarmTime">
         <button class="btn-set" id="setBtn">アラームをセット</button>
-        <p id="alarmStatus" style="font-size: 0.9rem; color: #666; margin-top: 10px;">時間を設定してください</p>
+        <p id="alarmStatus" style="font-size: 0.8rem; color: #666; margin-top: 10px;">時間を指定して「セット」を押してください</p>
     </div>
 
     <div id="mathChallenge">
-        <div id="snoozeStatus">🕒 集中タイム中... 残り <span id="snoozeTimer">180</span>秒</div>
+        <div id="snoozeStatus" style="display:none; color:var(--snooze); font-weight:bold; margin-bottom:10px;">
+            🕒 集中スヌーズ中... 残り <span id="snoozeTimer">180</span>秒
+        </div>
         <div id="questionBox">問題生成中...</div>
         
         <div id="trigTable">
-            <table style="background: white;">
-                <tr><th>θ</th><th>0°</th><th>30°</th><th>45°</th><th>60°</th><th>90°</th></tr>
-                <tr><td>sin</td><td>0</td><td>1/2</td><td>1/√2</td><td>√3/2</td><td>1</td></tr>
-                <tr><td>cos</td><td>1</td><td>√3/2</td><td>1/√2</td><td>1/2</td><td>0</td></tr>
-                <tr><td>tan</td><td>0</td><td>1/√3</td><td>1</td><td>√3</td><td>-</td></tr>
+            <table>
+                <tr><th>θ</th><th>0°</th><th>30°</th><th>45°</th><th>60°</th><th>90°</th><th>120°</th><th>135°</th><th>150°</th></tr>
+                <tr><td>sin</td><td>0</td><td>1/2</td><td>1/√2</td><td>√3/2</td><td>1</td><td>√3/2</td><td>1/√2</td><td>1/2</td></tr>
+                <tr><td>cos</td><td>1</td><td>√3/2</td><td>1/√2</td><td>1/2</td><td>0</td><td>-1/2</td><td>-1/√2</td><td>-√3/2</td></tr>
             </table>
         </div>
 
-        <!-- 回答表示パネル -->
         <div id="displayPanel"></div>
 
-        <!-- 入力パネル -->
         <div class="keypad">
             <button onclick="inputKey('7')">7</button>
             <button onclick="inputKey('8')">8</button>
@@ -210,7 +195,7 @@
             <button id="snoozeBtn" class="btn-snooze">3分集中モード（消音）</button>
             <button id="submitBtn" class="btn-submit">回答する</button>
         </div>
-        <div id="feedback" style="color:red; font-weight:bold; font-size: 0.9rem; height: 1.2rem; margin-bottom: 5px;"></div>
+        <div id="feedback" style="color:red; font-weight:bold; font-size: 0.9rem; min-height: 1.2rem;"></div>
     </div>
 </div>
 
@@ -236,13 +221,10 @@
         const now = new Date();
         const time = now.toTimeString().split(' ')[0].substring(0, 5);
         document.getElementById('clock').textContent = now.toTimeString().split(' ')[0];
-        if (targetTime === time && !isRinging && !isSnoozing) {
-            startAlarm();
-        }
+        if (targetTime === time && !isRinging && !isSnoozing) startAlarm();
     }
     setInterval(tick, 1000);
 
-    // アラームセット
     document.getElementById('setBtn').addEventListener('click', () => {
         const val = document.getElementById('alarmTime').value;
         if (val) {
@@ -252,7 +234,6 @@
         }
     });
 
-    // アラーム開始
     function startAlarm() {
         isRinging = true;
         isSnoozing = false;
@@ -266,7 +247,6 @@
         playAlarmSound();
     }
 
-    // 音再生
     function playAlarmSound() {
         if (!isRinging) return;
         stopCurrentSound();
@@ -290,27 +270,13 @@
         if (alarmInterval) { clearTimeout(alarmInterval); alarmInterval = null; }
     }
 
-    // パネル入力ロジック
-    function inputKey(num) {
-        userDisplay += num;
-        updateDisplay();
-    }
-    function clearKey() {
-        userDisplay = "";
-        updateDisplay();
-    }
-    function deleteKey() {
-        userDisplay = userDisplay.slice(0, -1);
-        updateDisplay();
-    }
-    function updateDisplay() {
-        document.getElementById('displayPanel').textContent = userDisplay;
-    }
+    function inputKey(num) { userDisplay += num; updateDisplay(); }
+    function clearKey() { userDisplay = ""; updateDisplay(); }
+    function deleteKey() { userDisplay = userDisplay.slice(0, -1); updateDisplay(); }
+    function updateDisplay() { document.getElementById('displayPanel').textContent = userDisplay; }
 
-    // スヌーズ
     document.getElementById('snoozeBtn').addEventListener('click', () => {
-        isRinging = false;
-        isSnoozing = true;
+        isRinging = false; isSnoozing = true;
         stopCurrentSound();
         document.getElementById('mainContainer').classList.remove('shake');
         document.getElementById('snoozeBtn').style.display = 'none';
@@ -321,58 +287,94 @@
         snoozeInterval = setInterval(() => {
             snoozeTimeLeft--;
             document.getElementById('snoozeTimer').textContent = snoozeTimeLeft;
-            if (snoozeTimeLeft <= 0) {
-                clearInterval(snoozeInterval);
-                if (isSnoozing) startAlarm();
-            }
+            if (snoozeTimeLeft <= 0) { clearInterval(snoozeInterval); if (isSnoozing) startAlarm(); }
         }, 1000);
     });
 
-    // 問題生成
+    // --- 問題生成エンジン（バリエーション拡大） ---
     function generateProblem() {
         const trigTable = document.getElementById('trigTable');
         trigTable.style.display = 'none';
-        const type = Math.floor(Math.random() * 5); 
+        const types = 12; // 問題パターンの数
+        const type = Math.floor(Math.random() * types); 
         let q = ""; let a = "";
 
         switch(type) {
-            case 0: // 因数分解
-                let v1 = Math.floor(Math.random() * 9) + 1;
-                let v2 = Math.floor(Math.random() * 9) + 1;
-                q = `x² + ${v1+v2}x + ${v1*v2} = 0 の小さい方の解は？`;
+            case 0: // 因数分解 (数I)
+                let v1 = rand(2, 9); let v2 = rand(2, 9);
+                q = `x² + ${v1+v2}x + ${v1*v2} = 0<br>の負の解のうち、小さい方は？`;
                 a = `-${Math.max(v1, v2)}`;
                 break;
-            case 1: // 絶対値
-                let v3 = Math.floor(Math.random() * 10) + 10;
-                q = `|x - 7| = ${v3} の正の解は？`;
-                a = `${v3 + 7}`;
+            case 1: // 絶対値 (数I)
+                let v3 = rand(10, 30);
+                q = `|x - 8| = ${v3}<br>の正の解は？`;
+                a = `${v3 + 8}`;
                 break;
-            case 2: // 三角比
+            case 2: // 三角比 (数I)
                 trigTable.style.display = 'block';
-                const list = [{q:"sin 60°", a:"√3/2"}, {q:"cos 30°", a:"√3/2"}, {q:"tan 30°", a:"1/√3"}, {q:"sin 45°", a:"1/√2"}];
+                const list = [
+                    {q:"sin 120°", a:"√3/2"}, {q:"cos 135°", a:"-1/√2"}, 
+                    {q:"sin 150°", a:"1/2"}, {q:"cos 120°", a:"-1/2"},
+                    {q:"tan 45°", a:"1"}, {q:"sin 90°", a:"1"}
+                ];
                 const p = list[Math.floor(Math.random()*list.length)];
-                q = `${p.q} は？`; a = p.a;
+                q = `${p.q} の値は？`; a = p.a;
                 break;
-            case 3: // 展開
-                let v4 = Math.floor(Math.random() * 8) + 2;
-                q = `(x + ${v4})(x - ${v4}) の定数項は？`;
-                a = `-${v4*v4}`;
+            case 3: // 2次関数の頂点 (数I)
+                let p_val = rand(1, 9); let q_val = rand(1, 9);
+                q = `y = (x - ${p_val})² + ${q_val}<br>の頂点のy座標は？`;
+                a = `${q_val}`;
                 break;
-            case 4: // 不等式
-                let v5 = Math.floor(Math.random() * 3) + 2;
-                q = `${v5}x - ${v5*8} < 0 を満たす最大の整数は？`;
-                a = `7`;
+            case 4: // 集合 (数A)
+                let nA = rand(15, 30); let nB = rand(10, 20); let nCap = rand(5, 9);
+                q = `n(A)=${nA}, n(B)=${nB}, n(A∩B)=${nCap}<br>のとき、n(A∪B) は？`;
+                a = `${nA + nB - nCap}`;
+                break;
+            case 5: // 順列 P (数A)
+                let nP = rand(4, 6);
+                q = `₅P${nP-2} の値は？`;
+                a = `${calcP(5, nP-2)}`;
+                break;
+            case 6: // 組合せ C (数A)
+                let nC = rand(3, 5);
+                q = `₆C${nC} の値は？`;
+                a = `${calcC(6, nC)}`;
+                break;
+            case 7: // 確率 (数A)
+                q = `1個のサイコロを投げるとき、<br>偶数の目が出る確率は？ (分数で)`;
+                a = `1/2`;
+                break;
+            case 8: // 展開 (数I)
+                let v8 = rand(3, 10);
+                q = `(x + ${v8})² を展開したときの<br>定数項は？`;
+                a = `${v8*v8}`;
+                break;
+            case 9: // 1次不等式 (数I)
+                let v9 = rand(2, 5);
+                q = `${v9}x - ${v9*7} < 0<br>を満たす最大の整数は？`;
+                a = `6`;
+                break;
+            case 10: // 進数変換 (数A)
+                let dec = rand(5, 15);
+                q = `10進数の ${dec} を<br>2進法で表すと？`;
+                a = dec.toString(2);
+                break;
+            case 11: // 三角形の面積 (数I)
+                q = `b=4, c=6, A=30° のとき<br>△ABCの面積は？`;
+                a = `6`; // 1/2 * 4 * 6 * 1/2
                 break;
         }
         document.getElementById('questionBox').innerHTML = q;
         correctAnswer = a;
     }
 
-    // 回答
+    function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+    function calcP(n, r) { let res = 1; for(let i=0; i<r; i++) res *= (n-i); return res; }
+    function calcC(n, r) { if(r>n/2) r = n-r; return calcP(n,r) / calcP(r,r); }
+
     document.getElementById('submitBtn').addEventListener('click', () => {
         if (userDisplay === correctAnswer) {
-            isRinging = false;
-            isSnoozing = false;
+            isRinging = false; isSnoozing = false;
             stopCurrentSound();
             if (snoozeInterval) clearInterval(snoozeInterval);
             document.getElementById('mainContainer').classList.remove('shake');
@@ -380,13 +382,12 @@
             document.getElementById('setupArea').style.display = 'block';
             targetTime = null;
             document.getElementById('alarmTime').value = "";
-            document.getElementById('alarmStatus').textContent = "完全解除！おはようございます！";
-            alert("正解です。");
+            document.getElementById('alarmStatus').textContent = "解除成功！目が覚めましたか？";
+            alert("正解です。アラームを停止しました。");
         } else {
-            document.getElementById('feedback').textContent = "不正解！問題が変わります";
-            clearKey();
-            generateProblem();
-            setTimeout(() => { document.getElementById('feedback').textContent = ""; }, 2000);
+            document.getElementById('feedback').textContent = "不正解！問題再生成";
+            clearKey(); generateProblem();
+            setTimeout(() => { document.getElementById('feedback').textContent = ""; }, 1500);
         }
     });
 </script>
