@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>高1数学アラーム - 3分集中スヌーズ版</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+            text-align: center;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        #clock {
+            font-size: 3.5rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+            font-family: monospace;
+        }
+
+        .setup-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        input[type="time"] { font-size: 1.5rem; padding: 10px; margin-bottom: 15px; }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 15px;
+            font-size: 1.1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        #mathChallenge {
+            display: none;
+            border-top: 5px solid #ff4d4d;
+            padding-top: 20px;
+        }
+
+        #questionBox {
+            background: #fff0f0;
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #d00;
+            margin-bottom: 15px;
+        }
+
+        /* スヌーズ状態の表示 */
+        #snoozeStatus {
+            display: none;
+            background: #e7f3ff;
+            color: #007bff;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        #trigTable {
+            display: none;
+            background: #fff9db;
+            border: 1px solid #fab005;
+            padding: 8px;
+            font-size: 0.75rem;
+            margin-bottom: 15px;
+        }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ccc; padding: 3px; }
+
+        #memoArea { text-align: left; margin-bottom: 15px; }
+        #calcMemo { width: 100%; height: 70px; padding: 8px; box-sizing: border-box; }
+
+        #answerInput {
+            width: 80%;
+            padding: 12px;
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .btn-snooze { background-color: #f39c12; }
+        .btn-submit { background-color: #28a745; }
+
+        .shake { animation: shake 0.5s infinite; }
+        @keyframes shake {
+            0%, 100% { transform: translate(0,0); }
+            25% { transform: translate(-5px,0); }
+            75% { transform: translate(5px,0); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container" id="mainContainer">
+    <div id="clock">00:00:00</div>
+
+    <div id="setupArea" class="setup-section">
+        <input type="time" id="alarmTime">
+        <button id="setBtn">アラームをセット</button>
+        <p id="alarmStatus">時間を設定してください</p>
+    </div>
+
+    <div id="mathChallenge">
+        <div id="snoozeStatus">🕒 集中タイム中... あと <span id="snoozeTimer">180</span> 秒</div>
+        
+        <div id="questionBox">問題生成中...</div>
+
+        <button id="snoozeBtn" class="btn-snooze">計算を開始する（3分消音）</button>
+
+        <div id="trigTable">
+            <p style="margin:0 0 5px 0;"><strong>【三角比の表】</strong></p>
+            <table>
+                <tr><th>θ</th><th>0°</th><th>30°</th><th>45°</th><th>60°</th><th>90°</th></tr>
+                <tr><td>sin</td><td>0</td><td>1/2</td><td>1/√2</td><td>√3/2</td><td>1</td></tr>
+                <tr><td>cos</td><td>1</td><td>√3/2</td><td>1/√2</td><td>1/2</td><td>0</td></tr>
+                <tr><td>tan</td><td>0</td><td>1/√3</td><td>1</td><td>√3</td><td>-</td></tr>
+            </table>
+        </div>
+
+        <div id="memoArea">
+            <small>📝 計算用メモ</small>
+            <textarea id="calcMemo" placeholder="計算過程をメモできます"></textarea>
+        </div>
+
+        <div id="feedback" style="color:red; margin-bottom:10px;"></div>
+        <input type="text" id="answerInput" placeholder="答えを入力" autocomplete="off">
+        <button id="submitBtn" class="btn-submit">回答して完全に停止</button>
+    </div>
+</div>
+
+<script>
+    let targetTime = null;
+    let isRinging = false;
+    let isSnoozing = false;
+    let correctAnswer = "";
+    let audioCtx = null;
+    let currentOsc = null;
+    let alarmInterval = null;
+    let snoozeTimeLeft = 180;
+    let snoozeInterval = null;
+
+    // 1. 時計更新
+    function tick() {
+        const now = new Date();
+        const time = now.toTimeString().split(' ')[0].substring(0, 5);
+        document.getElementById('clock').textContent = now.toTimeString().split(' ')[0];
+        if (targetTime === time && !isRinging && !isSnoozing) {
+            startAlarm();
+        }
+    }
+    setInterval(tick, 1000);
+
+    // 2. セット
+    document.getElementById('setBtn').addEventListener('click', () => {
+        const val = document.getElementById('alarmTime').value;
+        if (val) {
+            targetTime = val;
+            document.getElementById('alarmStatus').textContent = `🔔 ${val} にセット完了`;
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+    });
+
+    // 3. アラーム開始
+    function startAlarm() {
+        isRinging = true;
+        isSnoozing = false;
+        document.getElementById('setupArea').style.display = 'none';
+        document.getElementById('mathChallenge').style.display = 'block';
+        document.getElementById('mainContainer').classList.add('shake');
+        document.getElementById('snoozeBtn').style.display = 'block';
+        document.getElementById('snoozeStatus').style.display = 'none';
+        generateProblem();
+        playAlarmSound();
+    }
+
+    // 4. 音再生
+    function playAlarmSound() {
+        if (!isRinging) return;
+        stopCurrentSound();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        currentOsc = osc;
+        alarmInterval = setTimeout(() => {
+            stopCurrentSound();
+            if (isRinging) alarmInterval = setTimeout(playAlarmSound, 200);
+        }, 300);
+    }
+
+    function stopCurrentSound() {
+        if (currentOsc) { try { currentOsc.stop(); currentOsc.disconnect(); } catch(e){} currentOsc = null; }
+        if (alarmInterval) { clearTimeout(alarmInterval); alarmInterval = null; }
+    }
+
+    // 5. スヌーズ開始（集中タイム）
+    document.getElementById('snoozeBtn').addEventListener('click', () => {
+        isRinging = false;
+        isSnoozing = true;
+        stopCurrentSound();
+        document.getElementById('mainContainer').classList.remove('shake');
+        document.getElementById('snoozeBtn').style.display = 'none';
+        document.getElementById('snoozeStatus').style.display = 'block';
+        
+        snoozeTimeLeft = 180; // 3分
+        document.getElementById('snoozeTimer').textContent = snoozeTimeLeft;
+        
+        if (snoozeInterval) clearInterval(snoozeInterval);
+        snoozeInterval = setInterval(() => {
+            snoozeTimeLeft--;
+            document.getElementById('snoozeTimer').textContent = snoozeTimeLeft;
+            if (snoozeTimeLeft <= 0) {
+                clearInterval(snoozeInterval);
+                if (isSnoozing) startAlarm(); // まだ解けてなければ再始動
+            }
+        }, 1000);
+    });
+
+    // 6. 問題生成 (1000問以上対応)
+    function generateProblem() {
+        const trigTable = document.getElementById('trigTable');
+        trigTable.style.display = 'none';
+        const type = Math.floor(Math.random() * 5); 
+        let q = ""; let a = "";
+
+        switch(type) {
+            case 0: // 因数分解
+                let v1 = Math.floor(Math.random() * 10) + 1;
+                let v2 = Math.floor(Math.random() * 10) + 1;
+                q = `x² + ${v1+v2}x + ${v1*v2} = 0 の解のうち小さい方は？`;
+                a = `-${Math.max(v1, v2)}`;
+                break;
+            case 1: // 絶対値
+                let v3 = Math.floor(Math.random() * 20) + 5;
+                q = `|x - 5| = ${v3} の正の解は？`;
+                a = `${v3 + 5}`;
+                break;
+            case 2: // 三角比
+                trigTable.style.display = 'block';
+                const list = [{q:"sin 60°", a:"√3/2"}, {q:"cos 30°", a:"√3/2"}, {q:"tan 45°", a:"1"}, {q:"cos 60°", a:"1/2"}];
+                const p = list[Math.floor(Math.random()*list.length)];
+                q = `${p.q} の値は？`; a = p.a;
+                break;
+            case 3: // 展開
+                let v4 = Math.floor(Math.random() * 12) + 2;
+                q = `(x + ${v4})(x - ${v4}) の定数項は？`;
+                a = `-${v4*v4}`;
+                break;
+            case 4: // 1次不等式
+                let v5 = Math.floor(Math.random() * 4) + 2;
+                q = `${v5}x - ${v5*10} < 0 を満たす最大の整数は？`;
+                a = `9`;
+                break;
+        }
+        document.getElementById('questionBox').innerHTML = q;
+        correctAnswer = a;
+    }
+
+    // 7. 回答
+    document.getElementById('submitBtn').addEventListener('click', () => {
+        const input = document.getElementById('answerInput').value.trim();
+        if (input === correctAnswer) {
+            isRinging = false;
+            isSnoozing = false;
+            stopCurrentSound();
+            if (snoozeInterval) clearInterval(snoozeInterval);
+            
+            document.getElementById('mainContainer').classList.remove('shake');
+            document.getElementById('mathChallenge').style.display = 'none';
+            document.getElementById('setupArea').style.display = 'block';
+            
+            targetTime = null;
+            document.getElementById('alarmTime').value = "";
+            document.getElementById('answerInput').value = "";
+            document.getElementById('calcMemo').value = "";
+            document.getElementById('feedback').textContent = "";
+            document.getElementById('alarmStatus').textContent = "正解です。アラームを完全に解除しました。";
+            alert("正解！お疲れ様でした。");
+        } else {
+            document.getElementById('feedback').textContent = "不正解！問題が変わります";
+            document.getElementById('answerInput').value = "";
+            generateProblem();
+        }
+    });
+</script>
+
+</body>
+</html>
