@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>リアルタイム位置共有マップ</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        /* CSS */
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; font-family: sans-serif; }
+        #map { height: 100%; width: 100%; }
+        #status {
+            position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+            z-index: 1000; background: rgba(255, 255, 255, 0.9);
+            padding: 10px 20px; border-radius: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            font-size: 14px; text-align: center; pointer-events: none;
+        }
+        .my-marker { filter: hue-rotate(150deg); } /* 自分を青っぽくする */
+    </style>
+</head>
+<body>
+
+    <div id="status">位置情報を取得中...<br><small>同じURLを開いている人にあなたの場所が見えます</small></div>
+    <div id="map"></div>
+
+    <!-- 外部ライブラリの読み込み -->
+    <!-- Leaflet: 地図描画 -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Gun.js: リアルタイムデータ同期 (P2P) -->
+    <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+
+    <script>
+        // --- 設定 ---
+        // 同じURL（または同じハッシュ）のユーザーを識別するためのキー
+        const roomID = btoa(window.location.href).substring(0, 20); // URLを元にハッシュ化
+        const userID = Math.random().toString(36).substring(2, 9); // 自分用のランダムID
+        
+        // --- 初期化 ---
+        // 地図の初期位置（一旦東京近郊、後で現在地に更新）
+        const map = L.map('map').setView([35.6895, 139.6917], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        // 位置情報を保存するオブジェクト
+        const markers = {};
+
+        // Gun.jsの初期化（公開リレーサーバーを使用）
+        const gun = Gun([
+            'https://gun-manhattan.herokuapp.com/gun',
+            'https://peer.wall.org:443/gun'
+        ]);
+        const room = gun.get('location-share-demo').get(roomID);
+
+        // --- 位置情報の取得と送信 ---
+        if (!navigator.geolocation) {
+            document.getElementById('status').innerText = "お使いのブラウザは位置情報に対応していません。";
+        } else {
+            // 現在地の継続的な監視
+            navigator.geolocation.watchPosition(
+                (position) => {
+                    const { latitude, longitude } = position.coords;
+                    
+                    // 地図を自分の位置に合わせる（初回のみ、または移動時）
+                    if (!markers[userID]) {
+                        map.setView([latitude, longitude], 16);
+                        document.getElementById('status').innerHTML = "共有中：同じURLの人と位置が同期されています";
+                    }
+
+                    // 自分のデータをGun.jsに送信（10分で自動消去されるような仕組みはここでは簡易化）
+                    room.get(userID).put({
+                        lat: latitude,
+                        lng: longitude,
+                        time: Date.now()
+                    });
+                },
+                (err) => {
+                    document.getElementById('status').innerText = "位置情報の許可が必要です";
+                    console.error(err);
+                },
+                { enableHighAccuracy: true, maximumAge: 1000, timeout: 5000 }
+            );
+        }
+
+        // --- 他のユーザーのデータを受信して描画 ---
+        room.map().on((data, id) => {
+            if (!data) return;
+
+            // 5分以上更新がない古いデータは無視（簡易的なオフライン処理）
+            if (Date.now() - data.time > 300000) {
+                if (markers[id]) {
+                    map.removeLayer(markers[id]);
+                    delete markers[id];
+                }
+                return;
+            }
+
+            // マーカーがすでにある場合は移動、ない場合は新規作成
+            if (markers[id]) {
+                markers[id].setLatLng([data.lat, data.lng]);
+            } else {
+                const isMe = (id === userID);
+                const marker = L.marker([data.lat, data.lng]).addTo(map);
+                
+                if (isMe) {
+                    marker.bindPopup("あなた (自分)").openPopup();
+                    // 自分のマーカーにCSSクラスを適用して色を変える
+                    marker._icon.classList.add('my-marker');
+                } else {
+                    marker.bindPopup(`ユーザー: ${id}`);
+                }
+                markers[id] = marker;
+            }
+        });
+
+        // ページを閉じるときに自分のデータを消去（気休め程度）
+        window.addEventListener('beforeunload', () => {
+            room.get(userID).put(null);
+        });
+
+    </script>
+</body>
+</html>
