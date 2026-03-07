@@ -2,124 +2,209 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>リアルタイム位置共有マップ</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Find My Clone</title>
     
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Gun.js (Realtime DB) -->
+    <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+
     <style>
-        /* CSS */
-        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; font-family: sans-serif; }
-        #map { height: 100%; width: 100%; }
-        #status {
-            position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
-            z-index: 1000; background: rgba(255, 255, 255, 0.9);
-            padding: 10px 20px; border-radius: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            font-size: 14px; text-align: center; pointer-events: none;
+        :root {
+            --apple-blue: #007AFF;
+            --bg-glass: rgba(255, 255, 255, 0.85);
         }
-        .my-marker { filter: hue-rotate(150deg); } /* 自分を青っぽくする */
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; overflow: hidden; background: #f2f2f7; }
+        
+        #map { height: 100%; width: 100%; z-index: 1; }
+
+        /* ボトムパネル (iPhoneの「探す」風) */
+        #panel {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 35%;
+            background: var(--bg-glass); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            z-index: 1000; border-top-left-radius: 20px; border-top-right-radius: 20px;
+            box-shadow: 0 -5px 15px rgba(0,0,0,0.1);
+            display: flex; flex-direction: column; transition: height 0.3s;
+        }
+        .handle { width: 40px; height: 5px; background: #ccc; margin: 10px auto; border-radius: 10px; }
+        .panel-header { padding: 0 20px 10px; border-bottom: 1px solid #ddd; font-weight: bold; font-size: 1.2rem; }
+        #user-list { flex: 1; overflow-y: auto; padding: 0; margin: 0; list-style: none; }
+        .user-item { display: flex; align-items: center; padding: 15px 20px; border-bottom: 0.5px solid #eee; }
+        .user-avatar { width: 45px; height: 45px; border-radius: 50%; background: #ddd; margin-right: 15px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 20px; }
+        .user-info { flex: 1; }
+        .user-name { font-weight: 600; font-size: 16px; margin: 0; }
+        .user-dist { font-size: 13px; color: #888; margin: 0; }
+
+        /* マーカーのデザイン */
+        .custom-marker { border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+        .my-location-dot { width: 15px; height: 15px; background: var(--apple-blue); border: 2px solid white; border-radius: 50%; box-shadow: 0 0 10px var(--apple-blue); }
+
+        /* ステータスバー */
+        #status-pill {
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            z-index: 2000; background: rgba(0,0,0,0.7); color: white;
+            padding: 8px 16px; border-radius: 20px; font-size: 12px; white-space: nowrap; pointer-events: none;
+        }
     </style>
 </head>
 <body>
 
-    <div id="status">位置情報を取得中...<br><small>同じURLを開いている人にあなたの場所が見えます</small></div>
+    <div id="status-pill">位置情報を同期中...</div>
     <div id="map"></div>
 
-    <!-- 外部ライブラリの読み込み -->
-    <!-- Leaflet: 地図描画 -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- Gun.js: リアルタイムデータ同期 (P2P) -->
-    <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+    <div id="panel">
+        <div class="handle"></div>
+        <div class="panel-header">デバイス</div>
+        <ul id="user-list">
+            <!-- ユーザーがここに追加される -->
+        </ul>
+    </div>
 
     <script>
         // --- 設定 ---
-        // 同じURL（または同じハッシュ）のユーザーを識別するためのキー
-        const roomID = btoa(window.location.href).substring(0, 20); // URLを元にハッシュ化
-        const userID = Math.random().toString(36).substring(2, 9); // 自分用のランダムID
-        
-        // --- 初期化 ---
-        // 地図の初期位置（一旦東京近郊、後で現在地に更新）
-        const map = L.map('map').setView([35.6895, 139.6917], 13);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors'
+        const roomID = btoa(window.location.origin + window.location.pathname).substring(0, 16);
+        const myID = Math.random().toString(36).substring(2, 7);
+        const myColor = ["#FF3B30", "#34C759", "#007AFF", "#AF52DE", "#FF9500"][Math.floor(Math.random() * 5)];
+        const myName = "ゲスト " + myID;
+
+        // --- 地図初期化 ---
+        const map = L.map('map', { zoomControl: false }).setView([35.6895, 139.6917], 15);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap'
         }).addTo(map);
 
-        // 位置情報を保存するオブジェクト
-        const markers = {};
+        // --- データ管理 ---
+        const gun = Gun(['https://gun-manhattan.herokuapp.com/gun']);
+        const room = gun.get('find-my-clone-room-' + roomID);
+        const users = {}; // ユーザーデータ保持
 
-        // Gun.jsの初期化（公開リレーサーバーを使用）
-        const gun = Gun([
-            'https://gun-manhattan.herokuapp.com/gun',
-            'https://peer.wall.org:443/gun'
-        ]);
-        const room = gun.get('location-share-demo').get(roomID);
-
-        // --- 位置情報の取得と送信 ---
-        if (!navigator.geolocation) {
-            document.getElementById('status').innerText = "お使いのブラウザは位置情報に対応していません。";
-        } else {
-            // 現在地の継続的な監視
-            navigator.geolocation.watchPosition(
-                (position) => {
-                    const { latitude, longitude } = position.coords;
-                    
-                    // 地図を自分の位置に合わせる（初回のみ、または移動時）
-                    if (!markers[userID]) {
-                        map.setView([latitude, longitude], 16);
-                        document.getElementById('status').innerHTML = "共有中：同じURLの人と位置が同期されています";
-                    }
-
-                    // 自分のデータをGun.jsに送信（10分で自動消去されるような仕組みはここでは簡易化）
-                    room.get(userID).put({
-                        lat: latitude,
-                        lng: longitude,
-                        time: Date.now()
-                    });
-                },
-                (err) => {
-                    document.getElementById('status').innerText = "位置情報の許可が必要です";
-                    console.error(err);
-                },
-                { enableHighAccuracy: true, maximumAge: 1000, timeout: 5000 }
-            );
+        // --- 距離計算 (Haversine法) ---
+        function getDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; // km
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+                      Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            const d = R * c;
+            return d > 1 ? d.toFixed(1) + " km" : Math.round(d * 1000) + " m";
         }
 
-        // --- 他のユーザーのデータを受信して描画 ---
-        room.map().on((data, id) => {
-            if (!data) return;
+        let myPos = null;
 
-            // 5分以上更新がない古いデータは無視（簡易的なオフライン処理）
-            if (Date.now() - data.time > 300000) {
-                if (markers[id]) {
-                    map.removeLayer(markers[id]);
-                    delete markers[id];
-                }
+        // --- 位置取得 ---
+        navigator.geolocation.watchPosition(pos => {
+            const { latitude, longitude, accuracy } = pos.coords;
+            myPos = [latitude, longitude];
+
+            // 初回移動
+            if (!users[myID]) map.panTo(myPos);
+
+            // 自分のデータを送信
+            room.get(myID).put({
+                id: myID,
+                name: myName + " (自分)",
+                lat: latitude,
+                lng: longitude,
+                acc: accuracy,
+                color: myColor,
+                time: Date.now()
+            });
+
+            document.getElementById('status-pill').innerText = "位置を共有中：部屋 " + roomID;
+        }, err => {
+            document.getElementById('status-pill').innerText = "位置情報の許可が必要です";
+        }, { enableHighAccuracy: true });
+
+        // --- 他ユーザーの受信と更新 ---
+        room.map().on((data, id) => {
+            if (!data || !data.lat) return;
+            
+            // 10分以上更新がないユーザーを無視
+            if (Date.now() - data.time > 600000) {
+                removeUser(id);
                 return;
             }
 
-            // マーカーがすでにある場合は移動、ない場合は新規作成
-            if (markers[id]) {
-                markers[id].setLatLng([data.lat, data.lng]);
-            } else {
-                const isMe = (id === userID);
-                const marker = L.marker([data.lat, data.lng]).addTo(map);
-                
-                if (isMe) {
-                    marker.bindPopup("あなた (自分)").openPopup();
-                    // 自分のマーカーにCSSクラスを適用して色を変える
-                    marker._icon.classList.add('my-marker');
-                } else {
-                    marker.bindPopup(`ユーザー: ${id}`);
-                }
-                markers[id] = marker;
-            }
+            updateUserUI(id, data);
         });
 
-        // ページを閉じるときに自分のデータを消去（気休め程度）
-        window.addEventListener('beforeunload', () => {
-            room.get(userID).put(null);
-        });
+        function updateUserUI(id, data) {
+            const isMe = (id === myID);
+            
+            // マーカー更新
+            if (!users[id]) {
+                users[id] = {
+                    marker: L.marker([data.lat, data.lng], {
+                        icon: L.divIcon({
+                            className: 'custom-div-icon',
+                            html: isMe ? `<div class="my-location-dot"></div>` : 
+                                         `<div class="user-avatar" style="background:${data.color}; width:30px; height:30px; font-size:12px; border:2px solid white;">${data.name[0]}</div>`,
+                            iconSize: [30, 30],
+                            iconAnchor: [15, 15]
+                        })
+                    }).addTo(map),
+                    circle: L.circle([data.lat, data.lng], { radius: data.acc, weight: 1, fillOpacity: 0.1, color: isMe ? '#007AFF' : data.color }).addTo(map)
+                };
+            } else {
+                users[id].marker.setLatLng([data.lat, data.lng]);
+                users[id].circle.setLatLng([data.lat, data.lng]).setRadius(data.acc);
+            }
+
+            // リスト更新
+            refreshList();
+        }
+
+        function removeUser(id) {
+            if (users[id]) {
+                map.removeLayer(users[id].marker);
+                map.removeLayer(users[id].circle);
+                delete users[id];
+                refreshList();
+            }
+        }
+
+        function refreshList() {
+            const listEl = document.getElementById('user-list');
+            listEl.innerHTML = "";
+
+            // Gunから全ユーザーデータを取得してリスト化
+            room.once((allData) => {
+                Object.keys(users).forEach(id => {
+                    room.get(id).once(d => {
+                        if(!d) return;
+                        const dist = (myPos && id !== myID) ? getDistance(myPos[0], myPos[1], d.lat, d.lng) : "現在地";
+                        
+                        const li = document.createElement('li');
+                        li.className = "user-item";
+                        li.onclick = () => map.flyTo([d.lat, d.lng], 17);
+                        li.innerHTML = `
+                            <div class="user-avatar" style="background:${d.color}">${d.name[0]}</div>
+                            <div class="user-info">
+                                <p class="user-name">${d.name}</p>
+                                <p class="user-dist">${dist} • ${new Date(d.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}に更新</p>
+                            </div>
+                        `;
+                        listEl.appendChild(li);
+                    });
+                });
+            });
+        }
+
+        // 定期的に古いユーザーを掃除
+        setInterval(() => {
+            const now = Date.now();
+            Object.keys(users).forEach(id => {
+                room.get(id).once(d => {
+                    if (d && now - d.time > 10000) { // 10秒更新がなければオフライン気味
+                        // 実際にはもっと長くても良い
+                    }
+                });
+            });
+        }, 5000);
 
     </script>
 </body>
